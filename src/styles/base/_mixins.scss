@@ -23,3 +23,10 @@
          @content;
     }
 }
+@mixin xxs {
+    @media screen and (max-width: 320px) {
+         @content;
+    }
+}
+
+// Tilda 320 480 640 980 1200
