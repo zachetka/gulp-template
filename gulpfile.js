@@ -1,78 +1,78 @@
+// TODO: Решить проблемы с плагинами gulp-svg-sprite и gulp-favicons
+
 const { src, dest, series, parallel, watch } = require('gulp');
 const env = process.env.NODE_ENV;
 
-const browserSync = require('browser-sync').create(); // подключение Browsersync
-const gulpif = require('gulp-if'); // выбор варианта выполнения
-const del = require('del'); // удаление файлов и папок
-const concat = require('gulp-concat'); // объединение файлов
-const fileInclude = require('gulp-file-include'); // подключение файлов друг в друга
-const sourcemaps = require('gulp-sourcemaps'); // создание исходных карт
-const pxtorem = require('postcss-pxtorem'); // перевод px в rem
-
-const htmlmin = require('gulp-htmlmin'); // минификация html
-
-const sass = require('gulp-sass'); // компиляция sass в css
-sass.compiler = require('node-sass'); // указание в качестве компилятора sass-файлов NodeJS
-const sassGlob = require('gulp-sass-glob'); // глобальный импорт sass-файлов
+const gulpif = require('gulp-if');
+const del = require('del');
+const browserSync = require('browser-sync').create();
+const concat = require('gulp-concat');
+const sourcemaps = require('gulp-sourcemaps');
+const fileInclude = require('gulp-file-include');
+const htmlmin = require('gulp-htmlmin');
+const replace = require('gulp-replace');
+const sass = require('gulp-sass');
+sass.compiler = require('node-sass');
+const sassGlob = require('gulp-sass-glob');
 const postcss = require('gulp-postcss');
-const autoprefixer = require('autoprefixer'); // проставление префиксов
-const cssnano = require('cssnano'); // минификация css
-const groupmedia = require('gulp-group-css-media-queries'); // группировка медиазапросов
-
-const babel = require('gulp-babel'); // транспиляция кода js
-const uglify = require('gulp-uglify'); // минификция js
-
-const svgo = require('gulp-svgo'); // оптимизация svg
-const svgSprite = require('gulp-svg-sprite'); // создание svg-спрайта
-const imagemin = require('gulp-imagemin'); // оптимизация изображений
-const changed = require('gulp-changed'); // запускает таски только для изменившихся файлов
+const pxtorem = require('postcss-pxtorem');
+const autoprefixer = require('autoprefixer');
+const cssnano = require('cssnano');
+const groupmedia = require('gulp-group-css-media-queries');
+const babel = require('gulp-babel');
+const uglify = require('gulp-uglify');
+const svgSprite = require('gulp-svg-sprite');
+const imagemin = require('gulp-imagemin');
+const changed = require('gulp-changed');
+const favicon = require('gulp-favicons');
 
 /* Paths */
+const srcPath = 'src';
+const destPath = 'docs';
 const path = {
-    clean: 'docs',
-    build: {
-        html: 'docs/',
-        css: 'docs/',
-        js: 'docs/',
-        img: 'docs/images/',
-        font: 'docs/fonts/',
-    },
+    clean: destPath,
     src: {
-        html: 'src/views/*.html',
-        css: 'src/styles/main.scss',
-        js: 'src/scripts/*.js',
-        sprite: 'src/images/sprite/**/*.svg',
-        img: 'src/images/**/*.{jpg,png,svg,gif,ico}',
-        font: 'src/fonts/**/*.{woff,woff2}',
+        html: `${srcPath}/pages/*.html`,
+        css: `${srcPath}/assets/styles/main.scss`,
+        js: `${srcPath}/assets/scripts/main.js`,
+        sprite: `${srcPath}/assets/images/sprite/**/*.svg`,
+        favicons: `${srcPath}/assets/images/favicon/*.{jpg,png,svg,gif,ico,svg}`,
+        img: `${srcPath}/assets/images/**/*.{jpg,png,svg,gif,ico}`,
+        font: `${srcPath}/assets/fonts/**/*.{woff,woff2}`,
     },
     watch: {
-        html: 'src/**/*.html',
-        css: 'src/styles/**/*.scss',
-        js: 'src/scripts/**/*.js',
-        img: 'src/images/**/*.{jpg,png,svg,gif,ico}',
-        font: 'src/fonts/**/*.{ttf,woff,woff2}',
+        html: `${srcPath}/**/*.html`,
+        css: `${srcPath}/**/*.scss`,
+        js: `${srcPath}/**/*.js`,
+        img: `${srcPath}/assets/images/**/*.{jpg,png,svg,gif,ico}`,
+        font: `${srcPath}/assets/fonts/**/*.{ttf,woff,woff2}`,
     },
-    styleLibs: [
-        /*'node_modules/normalize.css/normalize.css'*/
-    ],
-    scriptLibs: [
-        /*'node_modules/bootstrap/js/docs/modal.js'*/
-    ],
+    build: {
+        html: destPath,
+        css: `${destPath}/assets`,
+        js: `${destPath}/assets`,
+        img: `${destPath}/assets/images`,
+        favicons: `${destPath}/assets/images/favicons`,
+        font: `${destPath}/assets/fonts`,
+    },
+    styleLibs: [/*'node_modules/normalize.css/normalize.css'*/],
+    scriptLibs: [/*'node_modules/bootstrap/js/dist/modal.js'*/],
 };
 
 /* Tasks */
-// Запуск локального сервера с livereload
+function clean() {
+    return del(path.clean);
+}
+
 function server() {
     browserSync.init({
         watch: true,
         server: {
-            baseDir: './docs',
+            baseDir: destPath,
         },
     });
 }
-exports.server = server;
 
-// Отслеживание файлов
 function observe() {
     watch(path.watch.html, html);
     watch(path.watch.css, css);
@@ -80,15 +80,7 @@ function observe() {
     watch(path.watch.img, img);
     watch(path.watch.font, font);
 }
-exports.observe = observe;
 
-// Очистка директории сборки
-function clean() {
-    return del(path.clean);
-}
-exports.clean = clean;
-
-// Работа с html-файлами
 function html() {
     return src(path.src.html)
         .pipe(fileInclude({ prefix: '@@' }))
@@ -101,11 +93,10 @@ function html() {
                 })
             )
         )
+        .pipe(replace('../../assets', 'assets'))
         .pipe(dest(path.build.html));
 }
-exports.html = html;
 
-// Работа с css-файлами
 function css() {
     return src([...path.styleLibs, path.src.css])
         .pipe(gulpif(env === 'dev', sourcemaps.init()))
@@ -113,7 +104,18 @@ function css() {
         .pipe(sassGlob())
         .pipe(sass().on('error', sass.logError))
         .pipe(gulpif(env === 'prod', groupmedia()))
-        .pipe(postcss([pxtorem({})]))
+        .pipe(
+            postcss([
+                pxtorem({
+                    rootValue: 16,
+                    unitPrecision: 5,
+                    propList: ['*'],
+                    replace: true,
+                    mediaQuery: false,
+                    minPixelValue: 2,
+                }),
+            ])
+        )
         .pipe(
             gulpif(
                 env === 'prod',
@@ -129,9 +131,7 @@ function css() {
         .pipe(gulpif(env === 'dev', sourcemaps.write()))
         .pipe(dest(path.build.css));
 }
-exports.css = css;
 
-// Работа с js-файлами
 function js() {
     return src([...path.scriptLibs, path.src.js])
         .pipe(gulpif(env === 'dev', sourcemaps.init()))
@@ -148,16 +148,9 @@ function js() {
         .pipe(gulpif(env === 'dev', sourcemaps.write()))
         .pipe(dest(path.build.js));
 }
-exports.js = js;
 
-// Работа с изображениями
 function img() {
     src(path.src.sprite)
-        .pipe(
-            svgo({
-                // plugins: [{ removeAttrs: { attrs: '(fill|stroke|style|width|height|data.*)' }}]
-            })
-        )
         .pipe(
             svgSprite({
                 mode: {
@@ -166,18 +159,46 @@ function img() {
             })
         )
         .pipe(dest(path.build.img));
-    return src([path.src.img, '!' + path.src.sprite])
+    src(path.src.favicons)
+        .pipe(
+            favicon({
+                icons: {
+                    appleIcon: true,
+                    favicons: true,
+                    online: false,
+                    appleStartup: false,
+                    android: false,
+                    firefox: false,
+                    yandex: false,
+                    windows: false,
+                    coast: false,
+                },
+            })
+        )
+        .pipe(dest(path.build.favicons));
+    return src([path.src.img, '!' + path.src.sprite, '!' + path.src.favicons])
         .pipe(changed(path.build.img))
-        .pipe(imagemin())
+        .pipe(
+            imagemin([
+                imagemin.gifsicle({ interlaced: true }),
+                imagemin.mozjpeg({ quality: 75, progressive: false }),
+                imagemin.optipng({ optimizationLevel: 5 }),
+                imagemin.svgo({
+                    plugins: [
+                        { removeViewBox: true },
+                        { cleanupIDs: false },
+                        // {removeAttrs: { attrs: '(fill|stroke|style|width|height|data.*)' }}
+                    ],
+                }),
+            ])
+        )
         .pipe(dest(path.build.img));
 }
 
-// Работа со шрифтами
 function font() {
     return src(path.src.font).pipe(dest(path.build.font));
 }
 
-/* Default tasks */
 exports.default = series(
     clean,
     parallel(html, css, js, img, font),
