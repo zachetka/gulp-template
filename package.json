@@ -21,7 +21,6 @@
         "autoprefixer": "^10.1.0",
         "browser-sync": "^2.26.13",
         "cross-env": "^7.0.3",
-        "cssnano": "^4.1.10",
         "del": "^6.0.0",
         "gulp": "^4.0.2",
         "gulp-babel": "^8.0.0",
@@ -29,7 +28,6 @@
         "gulp-concat": "^2.6.1",
         "gulp-favicons": "^3.0.0",
         "gulp-file-include": "^2.2.2",
-        "gulp-group-css-media-queries": "^1.2.2",
         "gulp-htmlmin": "^5.0.1",
         "gulp-if": "^3.0.0",
         "gulp-imagemin": "^7.1.0",
@@ -40,16 +38,13 @@
         "gulp-sourcemaps": "^3.0.0",
         "gulp-svg-sprite": "^1.5.0",
         "gulp-uglify": "^3.0.2",
-        "imagemin-gifsicle": "^7.0.0",
-        "imagemin-mozjpeg": "^9.0.0",
-        "imagemin-optipng": "^8.0.0",
-        "imagemin-svgo": "^8.0.0",
+        "mqpacker": "^7.0.0",
         "node-sass": "^5.0.0",
         "postcss": "^8.2.1",
         "postcss-pxtorem": "^5.1.1"
     },
     "dependencies": {
-        "bootstrap": "^4.5.3",
+        "jquery": "^3.5.1",
         "normalize.css": "^8.0.1"
     }
 }

@@ -2,8 +2,6 @@
 
 const { src, dest, series, parallel, watch } = require('gulp');
 const env = process.env.NODE_ENV;
-
-const gulpif = require('gulp-if');
 const del = require('del');
 const browserSync = require('browser-sync').create();
 const concat = require('gulp-concat');
@@ -17,8 +15,7 @@ const sassGlob = require('gulp-sass-glob');
 const postcss = require('gulp-postcss');
 const pxtorem = require('postcss-pxtorem');
 const autoprefixer = require('autoprefixer');
-const cssnano = require('cssnano');
-const groupmedia = require('gulp-group-css-media-queries');
+const mqpacker = require('mqpacker');
 const babel = require('gulp-babel');
 const uglify = require('gulp-uglify');
 const svgSprite = require('gulp-svg-sprite');
@@ -33,19 +30,19 @@ const path = {
     clean: destPath,
     src: {
         html: `${srcPath}/pages/*.html`,
-        css: `${srcPath}/assets/styles/main.scss`,
-        js: `${srcPath}/assets/scripts/main.js`,
-        sprite: `${srcPath}/assets/images/sprite/**/*.svg`,
-        favicons: `${srcPath}/assets/images/favicon/*.{jpg,png,svg,gif,ico,svg}`,
-        img: `${srcPath}/assets/images/**/*.{jpg,png,svg,gif,ico}`,
-        font: `${srcPath}/assets/fonts/**/*.{woff,woff2}`,
+        css: `${srcPath}/styles/main.scss`,
+        js: `${srcPath}/scripts/main.js`,
+        sprite: `${srcPath}/images/sprite/**/*.svg`,
+        favicons: `${srcPath}/images/favicon/*.{jpg,png,svg,gif,ico,svg}`,
+        img: `${srcPath}/images/**/*.{jpg,png,svg,gif,ico}`,
+        font: `${srcPath}/fonts/**/*.{woff,woff2}`,
     },
     watch: {
         html: `${srcPath}/**/*.html`,
         css: `${srcPath}/**/*.scss`,
         js: `${srcPath}/**/*.js`,
-        img: `${srcPath}/assets/images/**/*.{jpg,png,svg,gif,ico}`,
-        font: `${srcPath}/assets/fonts/**/*.{ttf,woff,woff2}`,
+        img: `${srcPath}/images/**/*.{jpg,png,svg,gif,ico}`,
+        font: `${srcPath}/fonts/**/*.{ttf,woff,woff2}`,
     },
     build: {
         html: destPath,
@@ -55,8 +52,12 @@ const path = {
         favicons: `${destPath}/assets/images/favicons`,
         font: `${destPath}/assets/fonts`,
     },
-    styleLibs: [/*'node_modules/normalize.css/normalize.css'*/],
-    scriptLibs: [/*'node_modules/bootstrap/js/dist/modal.js'*/],
+    styleLibs: [
+        /*'./node_modules/jquery/dist/jquery.js'*/
+    ],
+    scriptLibs: [
+        /*'node_modules/bootstrap/js/dist/modal.js'*/
+    ],
 };
 
 /* Tasks */
@@ -67,9 +68,7 @@ function clean() {
 function server() {
     browserSync.init({
         watch: true,
-        server: {
-            baseDir: destPath,
-        },
+        server: destPath,
     });
 }
 
@@ -85,68 +84,69 @@ function html() {
     return src(path.src.html)
         .pipe(fileInclude({ prefix: '@@' }))
         .pipe(
-            gulpif(
-                env === 'prod',
-                htmlmin({
-                    removeComments: true,
-                    collapseWhitespace: true,
-                })
-            )
+            htmlmin({
+                removeComments: true,
+                collapseWhitespace: true,
+            })
         )
-        .pipe(replace('../../assets', 'assets'))
+        .pipe(replace('../../images', 'assets/images'))
         .pipe(dest(path.build.html));
 }
 
 function css() {
-    return src([...path.styleLibs, path.src.css])
-        .pipe(gulpif(env === 'dev', sourcemaps.init()))
-        .pipe(concat('style.min.css'))
-        .pipe(sassGlob())
-        .pipe(sass().on('error', sass.logError))
-        .pipe(gulpif(env === 'prod', groupmedia()))
-        .pipe(
-            postcss([
-                pxtorem({
-                    rootValue: 16,
-                    unitPrecision: 5,
-                    propList: ['*'],
-                    replace: true,
-                    mediaQuery: false,
-                    minPixelValue: 2,
-                }),
-            ])
-        )
-        .pipe(
-            gulpif(
-                env === 'prod',
+    if (env === 'prod') {
+        return src([...path.styleLibs, path.src.css])
+            .pipe(concat('style.min.css'))
+            .pipe(sassGlob())
+            .pipe(
+                sass({ outputStyle: 'compressed' }).on('error', sass.logError)
+            )
+            .pipe(
                 postcss([
-                    autoprefixer({}),
-                    cssnano({
-                        zindex: false,
-                        discardComments: { removeAll: true },
+                    autoprefixer({ grid: true }),
+                    mqpacker({
+                        sort: true,
+                    }),
+                    pxtorem({
+                        rootValue: 16,
+                        unitPrecision: 5,
+                        propList: ['*'],
+                        replace: true,
+                        mediaQuery: false,
+                        minPixelValue: 2,
                     }),
                 ])
             )
-        )
-        .pipe(gulpif(env === 'dev', sourcemaps.write()))
-        .pipe(dest(path.build.css));
+            .pipe(dest(path.build.css));
+    } else {
+        return src([...path.styleLibs, path.src.css])
+            .pipe(sourcemaps.init())
+            .pipe(concat('style.min.css'))
+            .pipe(sassGlob())
+            .pipe(sass({ outputStyle: 'expanded' }).on('error', sass.logError))
+            .pipe(sourcemaps.write())
+            .pipe(dest(path.build.css));
+    }
 }
 
 function js() {
-    return src([...path.scriptLibs, path.src.js])
-        .pipe(gulpif(env === 'dev', sourcemaps.init()))
-        .pipe(concat('script.min.js', { newLine: ';' }))
-        .pipe(
-            gulpif(
-                env === 'prod',
+    if (env === 'prod') {
+        return src([...path.scriptLibs, path.src.js])
+            .pipe(concat('script.min.js', { newLine: ';' }))
+            .pipe(
                 babel({
                     presets: ['@babel/env'],
                 })
             )
-        )
-        .pipe(gulpif(env === 'prod', uglify()))
-        .pipe(gulpif(env === 'dev', sourcemaps.write()))
-        .pipe(dest(path.build.js));
+            .pipe(uglify())
+            .pipe(dest(path.build.js));
+    } else {
+        return src([...path.scriptLibs, path.src.js])
+            .pipe(sourcemaps.init())
+            .pipe(concat('script.min.js', { newLine: ';' }))
+            .pipe(sourcemaps.write())
+            .pipe(dest(path.build.js));
+    }
 }
 
 function img() {
@@ -181,14 +181,10 @@ function img() {
         .pipe(
             imagemin([
                 imagemin.gifsicle({ interlaced: true }),
-                imagemin.mozjpeg({ quality: 75, progressive: false }),
+                imagemin.mozjpeg({ quality: 75, progressive: true }),
                 imagemin.optipng({ optimizationLevel: 5 }),
                 imagemin.svgo({
-                    plugins: [
-                        { removeViewBox: true },
-                        { cleanupIDs: false },
-                        // {removeAttrs: { attrs: '(fill|stroke|style|width|height|data.*)' }}
-                    ],
+                    plugins: [{ removeViewBox: true }, { cleanupIDs: false }],
                 }),
             ])
         )
