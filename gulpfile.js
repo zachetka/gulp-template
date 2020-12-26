@@ -1,5 +1,3 @@
-// TODO: Решить проблемы с плагинами gulp-svg-sprite и gulp-favicons
-
 const { src, dest, series, parallel, watch } = require('gulp');
 const env = process.env.NODE_ENV;
 const del = require('del');
