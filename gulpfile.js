@@ -87,7 +87,7 @@ function html() {
                 collapseWhitespace: true,
             })
         )
-        .pipe(replace('../../images', 'assets/images'))
+        .pipe(replace('../images', 'assets/images'))
         .pipe(dest(path.build.html));
 }
 
